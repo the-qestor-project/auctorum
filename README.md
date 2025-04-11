@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/the-qestor-project/auctorum/assets/auctorum_logo_small.png" width="300"/>
+  <img src="https://raw.githubusercontent.com/the-qestor-project/auctorum/master/assets/auctorum_logo_small.png" width="300"/>
 </p>
 
 # AUCTORUM
