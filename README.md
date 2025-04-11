@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/the-qestor-project/auctorum/main/assets/auctorum_logo_small.png" width="300"/>
+</p>
+
 # AUCTORUM
 
 **"We are the originators."**
