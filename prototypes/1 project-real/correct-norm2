@@ -1,0 +1,59 @@
+let
+    // Load Financial-Sample.xlsx (Sales data)
+    SalesDataRaw = Excel.Workbook(File.Contents("C:\Users\Marve\OneDrive\Documents\1 project-real\Financial-Sample.xlsx"), null, true),
+    SalesSheet = SalesDataRaw{[Item="Sheet1",Kind="Sheet"]}[Data],
+    SalesHeaders = Table.PromoteHeaders(SalesSheet, [IgnoreErrors=true]),
+    CleanSalesHeaders = Table.TransformColumnNames(SalesHeaders, each Text.Trim(_)),
+
+    // Explicit typing for sales table
+    TypedSales = Table.TransformColumnTypes(CleanSalesHeaders, {
+        {"Date", type date},
+        {"Year", Int64.Type},
+        {"Sales", type number}
+    }),
+
+    // Round Sales values for consistency
+    RoundedSales = Table.TransformColumns(TypedSales, {{"Sales", each Number.Round(_, 2)}}),
+
+    // Load Sample-Sales-Data.xlsx (Expenses data)
+    ExpenseDataRaw = Excel.Workbook(File.Contents("C:\Users\Marve\OneDrive\Documents\1 project-real\Sample-Sales-Data.xlsx"), null, true),
+    ExpenseSheet = ExpenseDataRaw{[Item="Sheet1",Kind="Sheet"]}[Data],
+    ExpenseHeaders = Table.PromoteHeaders(ExpenseSheet, [IgnoreErrors=true]),
+    CleanExpenseHeaders = Table.TransformColumnNames(ExpenseHeaders, each Text.Trim(_)),
+
+    // Explicit typing for expenses table
+    TypedExpenses = Table.TransformColumnTypes(CleanExpenseHeaders, {
+        {"Year", Int64.Type},
+        {"Value", type number}
+    }),
+
+    // Round Expense values for consistency
+    RoundedExpenses = Table.TransformColumns(TypedExpenses, {{"Value", each Number.Round(_, 2)}}),
+
+    // Merge by Year (since that's the common field)
+    MergedData = Table.NestedJoin(
+        RoundedSales, 
+        {"Year"}, 
+        RoundedExpenses, 
+        {"Year"}, 
+        "Expenses", 
+        JoinKind.LeftOuter
+    ),
+
+    // Calculate total expense for each year (aggregated subtraction)
+    AddTotalExpense = Table.AddColumn(
+        MergedData, 
+        "TotalExpense", 
+        each List.Sum([Expenses][Value]), 
+        type number
+    ),
+
+    // Add Calculated Profit column (Sales - TotalExpense), handle nulls
+    AddCalculatedProfit = Table.AddColumn(
+        AddTotalExpense, 
+        "Calculated Profit", 
+        each [Sales] - (if [TotalExpense]=null then 0 else [TotalExpense]), 
+        type number
+    )
+in
+    AddCalculatedProfit

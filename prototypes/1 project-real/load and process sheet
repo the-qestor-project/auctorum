@@ -1,0 +1,28 @@
+let
+    // Load the Sales and Expenses workbooks
+    SalesDataRaw = Excel.Workbook(File.Contents("Sales.xlsx"), null, true),
+    ExpenseDataRaw = Excel.Workbook(File.Contents("Expenses.xlsx"), null, true),
+
+    // Access the first sheet/table (adjust as needed)
+    SalesData = SalesDataRaw{[Item="Sales", Kind="Sheet"]}[Data],
+    ExpenseData = ExpenseDataRaw{[Item="Expenses", Kind="Sheet"]}[Data],
+
+    // Promote headers
+    SalesHeaders = Table.PromoteHeaders(SalesData, [IgnoreErrors=true]),
+    ExpensesHeaders = Table.PromoteHeaders(ExpenseData, [IgnoreErrors=true]),
+
+    // Convert data types
+    SalesTyped = Table.TransformColumnTypes(SalesHeaders, {{"Date", type date}, {"Amount", type number}}),
+    ExpensesTyped = Table.TransformColumnTypes(ExpensesHeaders, {{"Date", type date}, {"Cost", type number}}),
+
+    // Clean: round numeric fields
+    CleanSales = Table.TransformColumns(SalesTyped, {{"Amount", each Number.Round(_, 2)}}),
+    CleanExpenses = Table.TransformColumns(ExpensesTyped, {{"Cost", each Number.Round(_, 2)}}),
+
+    // Join on Date
+    MergedData = Table.NestedJoin(CleanSales, {"Date"}, CleanExpenses, {"Date"}, "Expenses", JoinKind.LeftOuter),
+
+    // Add Profit column
+    AddProfit = Table.AddColumn(MergedData, "Profit", each [Amount] - List.Sum([Expenses][Cost]), type number)
+in
+    AddProfit

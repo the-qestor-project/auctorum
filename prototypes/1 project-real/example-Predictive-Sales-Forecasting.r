@@ -1,0 +1,5 @@
+library(forecast)
+ts_data <- ts(dataset$Sales, frequency=12)
+fit <- auto.arima(ts_data)
+forecasted <- forecast(fit, h=3)
+plot(forecasted, main="3-Month Sales Forecast")

@@ -1,0 +1,36 @@
+let
+    // Load Financial-Sample.xlsx
+    SalesDataRaw = Excel.Workbook(File.Contents("C:\Users\Marve\OneDrive\Documents\1 project-real\Financial-Sample.xlsx"), null, true),
+    SalesSheet = SalesDataRaw{[Item="Sheet1",Kind="Sheet"]}[Data],
+    SalesHeaders = Table.PromoteHeaders(SalesSheet, [IgnoreErrors=true]),
+    CleanSalesHeaders = Table.TransformColumnNames(SalesHeaders, each Text.Trim(_)),
+
+    // Load Sample-Sales-Data.xlsx
+    ExpenseDataRaw = Excel.Workbook(File.Contents("C:\Users\Marve\OneDrive\Documents\1 project-real\Sample-Sales-Data.xlsx"), null, true),
+    ExpenseSheet = ExpenseDataRaw{[Item="Sheet1",Kind="Sheet"]}[Data],
+    ExpenseHeaders = Table.PromoteHeaders(ExpenseSheet, [IgnoreErrors=true]),
+    CleanExpenseHeaders = Table.TransformColumnNames(ExpenseHeaders, each Text.Trim(_)),
+
+    // Ensure correct types
+    TypedSales = Table.TransformColumnTypes(CleanSalesHeaders, {
+        {"Date", type date},
+        {"Year", Int64.Type},
+        {"Sales", type number}
+    }),
+    TypedExpenses = Table.TransformColumnTypes(CleanExpenseHeaders, {
+        {"Year", Int64.Type},
+        {"Value", type number}
+    }),
+
+    // Round numbers
+    RoundedSales = Table.TransformColumns(TypedSales, {{"Sales", each Number.Round(_, 2)}}),
+    RoundedExpenses = Table.TransformColumns(TypedExpenses, {{"Value", each Number.Round(_, 2)}}),
+
+    // Merge by Year (since that's the common field)
+    MergedData = Table.NestedJoin(RoundedSales, {"Year"}, RoundedExpenses, {"Year"}, "Expenses", JoinKind.LeftOuter),
+    ExpandedData = Table.ExpandTableColumn(MergedData, "Expenses", {"Value"}, {"ExpenseValue"}),
+
+    // Calculate Net = Sales - ExpenseValue (handle nulls)
+    AddNet = Table.AddColumn(ExpandedData, "Net", each [Sales] - (if [ExpenseValue]=null then 0 else [ExpenseValue]), type number)
+in
+    AddNet

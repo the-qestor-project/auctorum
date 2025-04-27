@@ -1,0 +1,53 @@
+let
+    // Load workbooks
+    SalesDataRaw = Excel.Workbook(File.Contents("Sales.xlsx"), null, true),
+    ExpenseDataRaw = Excel.Workbook(File.Contents("Expenses.xlsx"), null, true),
+
+    // Try to auto-detect the first useful table/sheet
+    SalesSheet = SalesDataRaw{0}[Data],
+    ExpenseSheet = ExpenseDataRaw{0}[Data],
+
+    // Promote headers if not already promoted
+    SalesHeaders = Table.PromoteHeaders(SalesSheet, [IgnoreErrors=true]),
+    ExpenseHeaders = Table.PromoteHeaders(ExpenseSheet, [IgnoreErrors=true]),
+
+    // Trim and clean column names
+    CleanSalesHeaders = Table.TransformColumnNames(SalesHeaders, each Text.Trim(Text.Proper(_))),
+    CleanExpenseHeaders = Table.TransformColumnNames(ExpenseHeaders, each Text.Trim(Text.Proper(_))),
+
+    // Rename common columns for consistency
+    NormalizedSales = Table.RenameColumns(CleanSalesHeaders, {
+        {"Date", "Date"}, 
+        {"Transaction Date", "Date"}, 
+        {"Amount", "Amount"}, 
+        {"Revenue", "Amount"}
+    }, MissingField.Ignore),
+
+    NormalizedExpenses = Table.RenameColumns(CleanExpenseHeaders, {
+        {"Date", "Date"}, 
+        {"Transaction Date", "Date"}, 
+        {"Cost", "Cost"}, 
+        {"Amount", "Cost"}, 
+        {"Expense", "Cost"}
+    }, MissingField.Ignore),
+
+    // Ensure proper data types
+    TypedSales = Table.TransformColumnTypes(NormalizedSales, {
+        {"Date", type date}, 
+        {"Amount", type number}
+    }),
+
+    TypedExpenses = Table.TransformColumnTypes(NormalizedExpenses, {
+        {"Date", type date}, 
+        {"Cost", type number}
+    }),
+
+    // Round numbers
+    CleanSales = Table.TransformColumns(TypedSales, {{"Amount", each Number.Round(_, 2)}}),
+    CleanExpenses = Table.TransformColumns(TypedExpenses, {{"Cost", each Number.Round(_, 2)}}),
+
+    // Join and calculate profit
+    MergedData = Table.NestedJoin(CleanSales, {"Date"}, CleanExpenses, {"Date"}, "Expenses", JoinKind.LeftOuter),
+    AddProfit = Table.AddColumn(MergedData, "Profit", each [Amount] - List.Sum([Expenses][Cost]), type number)
+in
+    AddProfit
